@@ -22,6 +22,7 @@ const Index = () => {
   const [listTitle, setListTitle] = useState('');
   const [ownerNsec, setOwnerNsec] = useState('');
   const [guestNsec, setGuestNsec] = useState('');
+  const [ownerLink, setOwnerLink] = useState('');
   const [guestLink, setGuestLink] = useState('');
   const [copiedOwner, setCopiedOwner] = useState(false);
   const [copiedGuest, setCopiedGuest] = useState(false);
@@ -37,6 +38,7 @@ const Index = () => {
 
     setOwnerNsec(owner.nsec);
     setGuestNsec(guest.nsec);
+    setOwnerLink(`${window.location.origin}/list/${guest.nsec}?owner=${encodeURIComponent(owner.nsec)}`);
     setGuestLink(`${window.location.origin}/list/${guest.nsec}`);
     setStep('generated');
   };
@@ -168,19 +170,19 @@ const Index = () => {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label className="text-base font-semibold text-red-600 dark:text-red-400">
-                      Owner Key (Keep Private!)
+                      Owner Link (Keep Private!)
                     </Label>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Use this to add, remove, and reorder items. Do not share this key!
+                      Use this link to manage your list. Anyone with this link can add, remove, and reorder tasks.
                     </p>
                     <div className="flex gap-2">
                       <Input
-                        value={ownerNsec}
+                        value={ownerLink}
                         readOnly
                         className="font-mono text-sm"
                       />
                       <Button
-                        onClick={() => copyToClipboard(ownerNsec, 'owner')}
+                        onClick={() => copyToClipboard(ownerLink, 'owner')}
                         variant="outline"
                         size="icon"
                         className="shrink-0"
@@ -217,8 +219,8 @@ const Index = () => {
 
                 <Alert className="bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800">
                   <AlertDescription className="text-sm">
-                    <strong>Important:</strong> Save your owner key somewhere safe! If you lose it, 
-                    you won't be able to manage your list.
+                    <strong>Important:</strong> Save your owner link somewhere safe! If you lose it, 
+                    you won't be able to manage your list. Do not share this link publicly!
                   </AlertDescription>
                 </Alert>
 
