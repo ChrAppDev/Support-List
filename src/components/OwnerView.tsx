@@ -123,12 +123,6 @@ export function OwnerView({
   };
 
   const renderItem = (item: TodoItem, items: TodoItem[], index: number) => {
-    const statusIcon = item.status === 'complete' ? (
-      <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
-    ) : (
-      <Circle className="h-5 w-5 text-gray-400" />
-    );
-
     return (
       <div
         key={item.id}
@@ -141,7 +135,9 @@ export function OwnerView({
         }`}
       >
         <GripVertical className="h-5 w-5 text-gray-400 shrink-0 mt-0.5" />
-        <div className="pt-0.5">{statusIcon}</div>
+        <div className="pt-1.5">
+          <div className="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-500" />
+        </div>
         
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">

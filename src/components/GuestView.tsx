@@ -58,18 +58,14 @@ export function GuestView({ list, onUpdateItem }: GuestViewProps) {
   };
 
   const renderItem = (item: TodoItem) => {
-    const statusIcon = item.status === 'complete' ? (
-      <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
-    ) : (
-      <Circle className="h-5 w-5 text-gray-400" />
-    );
-
     return (
       <div
         key={item.id}
         className="flex items-start gap-3 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow"
       >
-        <div className="pt-0.5">{statusIcon}</div>
+        <div className="pt-1.5">
+          <div className="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-500" />
+        </div>
         
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
@@ -109,7 +105,7 @@ export function GuestView({ list, onUpdateItem }: GuestViewProps) {
             </div>
           </div>
 
-          <div className="flex gap-2 mt-3">
+          <div className="flex flex-wrap gap-2 mt-3">
             {item.status === 'pending' && (
               <>
                 <Button
@@ -119,7 +115,7 @@ export function GuestView({ list, onUpdateItem }: GuestViewProps) {
                   disabled={updating}
                   className="text-xs"
                 >
-                  Claim Task
+                  Claim
                 </Button>
                 <Button
                   size="sm"
@@ -128,7 +124,7 @@ export function GuestView({ list, onUpdateItem }: GuestViewProps) {
                   disabled={updating}
                   className="text-xs"
                 >
-                  Mark Complete
+                  Complete
                 </Button>
               </>
             )}
@@ -151,7 +147,7 @@ export function GuestView({ list, onUpdateItem }: GuestViewProps) {
                   disabled={updating}
                   className="text-xs"
                 >
-                  Mark Complete
+                  Complete
                 </Button>
               </>
             )}
@@ -176,7 +172,7 @@ export function GuestView({ list, onUpdateItem }: GuestViewProps) {
               className="text-xs gap-1"
             >
               <MessageSquare className="h-3.5 w-3.5" />
-              {item.note ? 'Edit Note' : 'Add Note'}
+              Note
             </Button>
           </div>
         </div>
