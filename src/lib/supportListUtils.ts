@@ -38,6 +38,7 @@ export function createListContent(list: SupportList): string {
   return JSON.stringify({
     title: list.title,
     items: list.items,
+    ownerPubkey: list.ownerPubkey,
     guestPubkey: list.guestPubkey,
     createdAt: list.createdAt,
     updatedAt: list.updatedAt,
@@ -47,14 +48,14 @@ export function createListContent(list: SupportList): string {
 /**
  * Parse list event content
  */
-export function parseListContent(content: string, ownerPubkey: string): SupportList | null {
+export function parseListContent(content: string, fallbackOwnerPubkey: string): SupportList | null {
   try {
     const data = JSON.parse(content);
     return {
       id: LIST_D_TAG,
       title: data.title || 'Support List',
       items: data.items || [],
-      ownerPubkey,
+      ownerPubkey: data.ownerPubkey || fallbackOwnerPubkey,
       guestPubkey: data.guestPubkey,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,

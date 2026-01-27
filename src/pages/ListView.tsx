@@ -39,7 +39,7 @@ const ListView = () => {
     description: 'Collaborative todo list where friends can help by claiming tasks.',
   });
 
-  // Determine owner and guest pubkeys
+  // Determine guest pubkey
   const guestPrivateKey = guestNsec ? decodeNsec(guestNsec) : null;
   const guestPubkey = guestPrivateKey ? getPublicKey(guestPrivateKey) : null;
 
@@ -55,54 +55,40 @@ const ListView = () => {
 
   // Load the list from Nostr
   useEffect(() => {
-    if (!ownerPubkey || !guestPubkey) return;
+    if (!guestPubkey) return;
 
     const loadList = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        // Query for the list event from both owner and guest
+        // Query for list events that reference this guest pubkey
         const events = await nostr.query([
           {
             kinds: [LIST_KIND],
-            authors: [ownerPubkey, guestPubkey],
+            '#p': [guestPubkey],
             '#d': [LIST_D_TAG],
-            limit: 10, // Get recent events from both
+            limit: 20,
           },
         ]);
 
+        if (events.length === 0) {
+          setError('No list found. The owner may not have created the list yet.');
+          setLoading(false);
+          return;
+        }
+
         // Sort by created_at to get the most recent
         const sortedEvents = events.sort((a, b) => b.created_at - a.created_at);
+        const mostRecent = sortedEvents[0];
 
-        if (sortedEvents.length > 0) {
-          const mostRecent = sortedEvents[0];
-          const parsed = parseListContent(mostRecent.content, ownerPubkey);
-          if (parsed) {
-            setList(parsed);
-          } else {
-            // Create default list
-            setList({
-              id: LIST_D_TAG,
-              title: 'My Support List',
-              items: [],
-              ownerPubkey,
-              guestPubkey,
-              createdAt: Date.now(),
-              updatedAt: Date.now(),
-            });
-          }
+        // Parse the content to get the full list data
+        const parsed = parseListContent(mostRecent.content, mostRecent.pubkey);
+        
+        if (parsed) {
+          setList(parsed);
         } else {
-          // Create default list
-          setList({
-            id: LIST_D_TAG,
-            title: 'My Support List',
-            items: [],
-            ownerPubkey,
-            guestPubkey,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-          });
+          setError('Failed to parse list data.');
         }
       } catch (err) {
         console.error('Failed to load list:', err);
@@ -113,7 +99,7 @@ const ListView = () => {
     };
 
     loadList();
-  }, [ownerPubkey, guestPubkey, nostr]);
+  }, [guestPubkey, nostr]);
 
   const handleOwnerAuth = (nsec: string) => {
     try {
@@ -135,17 +121,22 @@ const ListView = () => {
 
   const saveList = async (updatedList: SupportList, useGuestKey = false) => {
     const privateKey = useGuestKey ? guestPrivateKey : ownerPrivateKey;
-    if (!privateKey) return;
+    if (!privateKey || !guestPubkey) return;
 
     try {
+      // Build p tags - include both owner and guest if we know both
+      const pTags: string[][] = [['p', guestPubkey]];
+      if (updatedList.ownerPubkey && updatedList.ownerPubkey !== guestPubkey) {
+        pTags.push(['p', updatedList.ownerPubkey]);
+      }
+
       const event = finalizeEvent(
         {
           kind: LIST_KIND,
           content: createListContent(updatedList),
           tags: [
             ['d', LIST_D_TAG],
-            ['p', ownerPubkey], // Reference to owner
-            ['p', guestPubkey], // Reference to guest
+            ...pTags,
           ],
           created_at: Math.floor(Date.now() / 1000),
         },
