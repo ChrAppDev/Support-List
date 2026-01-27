@@ -1,13 +1,14 @@
 import { useSeoMeta } from '@unhead/react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { nip19 } from 'nostr-tools';
+import { getPublicKey, finalizeEvent } from 'nostr-tools';
+import { useNostr } from '@nostrify/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { generateKeypair } from '@/lib/supportListUtils';
+import { generateKeypair, decodeNsec, LIST_KIND, LIST_D_TAG } from '@/lib/supportListUtils';
 import { Copy, Check, ListTodo, Users } from 'lucide-react';
 
 const Index = () => {
@@ -17,6 +18,7 @@ const Index = () => {
   });
 
   const navigate = useNavigate();
+  const { nostr } = useNostr();
   const [listTitle, setListTitle] = useState('');
   const [ownerNsec, setOwnerNsec] = useState('');
   const [guestNsec, setGuestNsec] = useState('');
@@ -24,6 +26,7 @@ const Index = () => {
   const [copiedOwner, setCopiedOwner] = useState(false);
   const [copiedGuest, setCopiedGuest] = useState(false);
   const [step, setStep] = useState<'create' | 'generated'>('create');
+  const [publishing, setPublishing] = useState(false);
 
   const handleCreateList = () => {
     if (!listTitle.trim()) return;
@@ -49,8 +52,50 @@ const Index = () => {
     }
   };
 
-  const handleGoToOwnerView = () => {
-    navigate(`/list/${guestNsec}?owner=${encodeURIComponent(ownerNsec)}`);
+  const handleGoToOwnerView = async () => {
+    setPublishing(true);
+    try {
+      // Decode keys to get pubkeys
+      const ownerPrivateKey = decodeNsec(ownerNsec);
+      const ownerPubkey = getPublicKey(ownerPrivateKey);
+      const guestPrivateKey = decodeNsec(guestNsec);
+      const guestPubkey = getPublicKey(guestPrivateKey);
+
+      // Create initial empty list event
+      const listContent = JSON.stringify({
+        title: listTitle,
+        items: [],
+        ownerPubkey,
+        guestPubkey,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+
+      const event = finalizeEvent(
+        {
+          kind: LIST_KIND,
+          content: listContent,
+          tags: [
+            ['d', LIST_D_TAG],
+            ['p', ownerPubkey],
+            ['p', guestPubkey],
+          ],
+          created_at: Math.floor(Date.now() / 1000),
+        },
+        ownerPrivateKey
+      );
+
+      // Publish to Nostr
+      await nostr.event(event);
+
+      // Navigate to owner view
+      navigate(`/list/${guestNsec}?owner=${encodeURIComponent(ownerNsec)}`);
+    } catch (error) {
+      console.error('Failed to publish list:', error);
+      alert('Failed to publish list. Please try again.');
+    } finally {
+      setPublishing(false);
+    }
   };
 
   return (
@@ -180,9 +225,10 @@ const Index = () => {
                 <div className="flex gap-3">
                   <Button
                     onClick={handleGoToOwnerView}
+                    disabled={publishing}
                     className="flex-1 h-12 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
                   >
-                    Go to Owner View
+                    {publishing ? 'Publishing to Nostr...' : 'Go to Owner View'}
                   </Button>
                   <Button
                     onClick={() => {
@@ -191,6 +237,7 @@ const Index = () => {
                     }}
                     variant="outline"
                     className="flex-1 h-12"
+                    disabled={publishing}
                   >
                     Create Another List
                   </Button>
