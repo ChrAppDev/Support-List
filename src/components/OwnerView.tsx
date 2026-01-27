@@ -3,6 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import type { SupportList, TodoItem } from '@/lib/types';
 import { sortItems } from '@/lib/supportListUtils';
 import { CheckCircle2, Circle, User, MessageSquare, Trash2, GripVertical, ChevronUp, ChevronDown, Plus } from 'lucide-react';
@@ -18,12 +21,17 @@ interface OwnerViewProps {
 export function OwnerView({
   list,
   onAddItem,
+  onUpdateItem,
   onDeleteItem,
   onReorderItems,
 }: OwnerViewProps) {
   const [newItemTitle, setNewItemTitle] = useState('');
   const [adding, setAdding] = useState(false);
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
+  const [editingNote, setEditingNote] = useState<string | null>(null);
+  const [noteText, setNoteText] = useState('');
+  const [claimedByName, setClaimedByName] = useState('');
+  const [updating, setUpdating] = useState(false);
 
   const sortedItems = sortItems(list.items);
   const pendingItems = sortedItems.filter(i => i.status === 'pending');
@@ -39,6 +47,29 @@ export function OwnerView({
       setNewItemTitle('');
     } finally {
       setAdding(false);
+    }
+  };
+
+  const handleOpenNote = (item: TodoItem) => {
+    setEditingNote(item.id);
+    setNoteText(item.note || '');
+    setClaimedByName(item.claimedBy || '');
+  };
+
+  const handleSaveNote = async () => {
+    if (!editingNote) return;
+
+    setUpdating(true);
+    try {
+      await onUpdateItem(editingNote, { 
+        note: noteText.trim() || undefined,
+        claimedBy: claimedByName.trim() || undefined,
+      });
+      setEditingNote(null);
+      setNoteText('');
+      setClaimedByName('');
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -178,7 +209,7 @@ export function OwnerView({
             </div>
           </div>
 
-          <div className="flex gap-2 mt-3">
+          <div className="flex flex-wrap gap-2 mt-3">
             <Button
               size="sm"
               variant="outline"
@@ -198,6 +229,15 @@ export function OwnerView({
             >
               <ChevronDown className="h-3.5 w-3.5" />
               Down
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => handleOpenNote(item)}
+              className="text-xs gap-1"
+            >
+              <MessageSquare className="h-3.5 w-3.5" />
+              Note
             </Button>
             <Button
               size="sm"
@@ -294,6 +334,46 @@ export function OwnerView({
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={editingNote !== null} onOpenChange={(open) => !open && setEditingNote(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Note</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="claimed-by-owner">Claimed By (optional)</Label>
+              <Input
+                id="claimed-by-owner"
+                placeholder="e.g., John"
+                value={claimedByName}
+                onChange={(e) => setClaimedByName(e.target.value)}
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Name of person who claimed this task
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="note-owner">Note</Label>
+              <Textarea
+                id="note-owner"
+                placeholder="Add any comments or updates..."
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingNote(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveNote} disabled={updating}>
+              Save Note
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
