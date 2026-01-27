@@ -29,6 +29,7 @@ export function OwnerView({
   const [adding, setAdding] = useState(false);
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [editingNote, setEditingNote] = useState<string | null>(null);
+  const [viewingNote, setViewingNote] = useState<string | null>(null);
   const [noteText, setNoteText] = useState('');
   const [claimedByName, setClaimedByName] = useState('');
   const [updating, setUpdating] = useState(false);
@@ -50,10 +51,14 @@ export function OwnerView({
     }
   };
 
-  const handleOpenNote = (item: TodoItem) => {
-    setEditingNote(item.id);
-    setNoteText(item.note || '');
-    setClaimedByName(item.claimedBy || '');
+  const handleOpenNote = (item: TodoItem, editMode = false) => {
+    if (editMode) {
+      setEditingNote(item.id);
+      setNoteText(item.note || '');
+      setClaimedByName(item.claimedBy || '');
+    } else {
+      setViewingNote(item.id);
+    }
   };
 
   const handleSaveNote = async () => {
@@ -187,13 +192,6 @@ export function OwnerView({
                   <span>{item.claimedBy}</span>
                 </div>
               )}
-              
-              {item.note && (
-                <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-950 rounded text-sm text-gray-700 dark:text-gray-300 flex items-start gap-2">
-                  <MessageSquare className="h-4 w-4 shrink-0 mt-0.5" />
-                  <span>{item.note}</span>
-                </div>
-              )}
             </div>
 
             <div className="flex items-center gap-2">
@@ -232,12 +230,12 @@ export function OwnerView({
             </Button>
             <Button
               size="sm"
-              variant="ghost"
-              onClick={() => handleOpenNote(item)}
+              variant={item.note ? "outline" : "ghost"}
+              onClick={() => handleOpenNote(item, false)}
               className="text-xs gap-1"
             >
               <MessageSquare className="h-3.5 w-3.5" />
-              Note
+              {item.note ? 'View Note' : 'Note'}
             </Button>
             <Button
               size="sm"
@@ -335,6 +333,58 @@ export function OwnerView({
         </Card>
       )}
 
+      {/* View Note Dialog */}
+      <Dialog open={viewingNote !== null} onOpenChange={(open) => !open && setViewingNote(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>View Note</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {(() => {
+              const item = list.items.find(i => i.id === viewingNote);
+              if (!item) return null;
+              
+              return (
+                <>
+                  {item.claimedBy && (
+                    <div className="space-y-2">
+                      <Label>Claimed By</Label>
+                      <p className="text-sm text-gray-700 dark:text-gray-300">{item.claimedBy}</p>
+                    </div>
+                  )}
+                  {item.note && (
+                    <div className="space-y-2">
+                      <Label>Note</Label>
+                      <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{item.note}</p>
+                    </div>
+                  )}
+                  {!item.note && !item.claimedBy && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                      No note has been added yet.
+                    </p>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewingNote(null)}>
+              Close
+            </Button>
+            <Button onClick={() => {
+              const item = list.items.find(i => i.id === viewingNote);
+              if (item) {
+                setViewingNote(null);
+                handleOpenNote(item, true);
+              }
+            }}>
+              Edit Note
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Note Dialog */}
       <Dialog open={editingNote !== null} onOpenChange={(open) => !open && setEditingNote(null)}>
         <DialogContent>
           <DialogHeader>
