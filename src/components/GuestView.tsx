@@ -45,6 +45,7 @@ export function GuestView({ list, onUpdateItem }: GuestViewProps) {
     if (editMode) {
       setEditingNote(item.id);
       setNoteText(item.note || '');
+      setClaimedByName(item.claimedBy || '');
     } else {
       setViewingNote(item.id);
     }
@@ -55,9 +56,13 @@ export function GuestView({ list, onUpdateItem }: GuestViewProps) {
 
     setUpdating(true);
     try {
-      await onUpdateItem(editingNote, { note: noteText.trim() || undefined });
+      await onUpdateItem(editingNote, { 
+        note: noteText.trim() || undefined,
+        claimedBy: claimedByName.trim() || undefined,
+      });
       setEditingNote(null);
       setNoteText('');
+      setClaimedByName('');
     } finally {
       setUpdating(false);
     }
