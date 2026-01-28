@@ -88,15 +88,11 @@ const ListView = () => {
         const parsed = parseListContent(mostRecent.content, mostRecent.pubkey);
         
         if (parsed) {
-          console.log('Raw items from Nostr:', parsed.items);
-          
           // Decrypt items if we have the necessary keys
           if (guestPrivateKey && parsed.ownerPubkey) {
-            const decryptedItems = parsed.items.map(item => {
-              console.log('Processing item:', item.id, 'Title starts with ENC:', item.title.startsWith('ENC:'));
-              return decryptItemData(item, guestPrivateKey, parsed.ownerPubkey);
-            });
-            console.log('Decrypted items:', decryptedItems);
+            const decryptedItems = parsed.items.map(item => 
+              decryptItemData(item, guestPrivateKey, parsed.ownerPubkey)
+            );
             setList({ ...parsed, items: decryptedItems });
           } else {
             setList(parsed);
@@ -150,9 +146,7 @@ const ListView = () => {
       const decryptedForState: TodoItem[] = [];
       
       updatedList.items.forEach(item => {
-        console.log('Processing item for save:', item.id, 'Title:', item.title.substring(0, 20), 'Has encrypted flag:', item.encrypted);
         const encrypted = encryptItemData(item, privateKey, recipientPubkey);
-        console.log('After encryption:', encrypted.id, 'Title starts with ENC:', encrypted.title.startsWith('ENC:'), 'Encrypted flag:', encrypted.encrypted);
         
         encryptedForStorage.push(encrypted);
         
