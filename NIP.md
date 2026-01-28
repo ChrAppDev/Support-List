@@ -117,20 +117,93 @@ A replaceable event that stores the current state of a support list. Both owner 
 
 ## Privacy Considerations
 
-- List content is **public** on relays (anyone who queries can see events)
-- Guest access is gated by knowledge of the guest nsec URL
-- The guest nsec in the URL is a shared secret - anyone with it can update the list
-- For truly private lists, implement NIP-59 gift wrapping (future enhancement)
-- Consider security implications of sharing guest nsec via URL
+### With Encryption (v2.0+)
+
+- ✅ **Item data is encrypted** using NIP-44 with owner/guest conversation key
+- ✅ **Only link holders can decrypt** - requires either owner or guest private key
+- ✅ **Relay operators cannot read** encrypted task titles, notes, or claimed-by names
+- ✅ **Public metadata only** - Event structure and d-tags are visible, content is encrypted
+- ⚠️ **Status and order remain unencrypted** for proper list organization
+- ⚠️ **Guest nsec in URL** - Anyone with the link can access and modify the list
+- ⚠️ **No server-side access control** - Security depends on keeping links private
+
+### Legacy Items (Pre-encryption)
+
+- Items created before encryption was enabled remain unencrypted
+- These items display with 🔓 icon to indicate they are not private
+- Can be viewed by anyone querying the relay
+- Consider recreating old lists if privacy is important
+
+### Security Model
+
+**What's Protected:**
+- Task titles ✅
+- Task notes ✅
+- "Claimed by" names ✅
+
+**What's NOT Protected:**
+- Number of items in the list ❌
+- Item status (pending/claimed/complete) ❌
+- Item order ❌
+- Existence of the list ❌
+- Update timestamps ❌
+
+**Best Practices:**
+- Keep owner and guest links private (treat them like passwords)
+- Only share guest link with people you trust
+- Recreate lists periodically to ensure all items are encrypted
+- Don't include highly sensitive information even in encrypted items
+
+## Encryption (NIP-44)
+
+**Version 2.0+**: Items are encrypted using NIP-44 for privacy.
+
+### Encrypted Item Structure
+
+When an item is encrypted, its sensitive data (title, note, claimedBy) is encrypted using NIP-44:
+
+```json
+{
+  "id": "<unique-item-id>",
+  "title": "ENC:<nip44-encrypted-payload>",
+  "status": "pending",
+  "order": 0,
+  "encrypted": true
+}
+```
+
+The encrypted payload contains:
+```json
+{
+  "title": "<actual-task-title>",
+  "note": "<optional-note>",
+  "claimedBy": "<optional-name>"
+}
+```
+
+### Encryption Key Derivation
+
+- **Conversation Key**: Derived from owner private key + guest public key (and vice versa)
+- **Encryption Algorithm**: NIP-44 v2
+- Both owner and guest can decrypt items using their respective keys
+
+### Backwards Compatibility
+
+- **Old items** (without `encrypted: true`) remain unencrypted for backwards compatibility
+- **New items** are automatically encrypted when created or updated
+- Clients display encryption status with lock icons:
+  - 🔒 Green lock = Encrypted
+  - 🔓 Yellow unlock = Not encrypted (legacy)
 
 ## Example Flow
 
 1. Alice creates a "Moving Day Tasks" list
-2. Alice gets owner nsec: `nsec1owner...` (keeps private)
+2. Alice gets owner link: `https://app.com/list/nsec1guest...?owner=nsec1owner...` (keeps private)
 3. Alice gets guest link: `https://app.com/list/nsec1guest...` (shares with friends)
 4. Bob clicks guest link and sees the task list
-5. Bob claims "Pack kitchen boxes" by clicking "Claim Task"
-6. Bob's client publishes kind 30078 event with updated item status
-7. Alice sees Bob's update in real-time via relay subscription
-8. Alice adds more tasks using her owner view
-9. Both Alice and Bob see the merged current state
+5. Bob claims "Pack kitchen boxes" by clicking "Claim"
+6. Bob's client encrypts the update and publishes kind 30078 event
+7. Alice sees Bob's update in real-time via relay subscription (decrypted automatically)
+8. Alice adds more tasks using her owner view (automatically encrypted)
+9. Both Alice and Bob see the merged current state with decrypted items
+10. Anyone else querying the relay sees only encrypted data

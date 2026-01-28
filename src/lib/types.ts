@@ -5,6 +5,7 @@ export interface TodoItem {
   claimedBy?: string;
   note?: string;
   order: number;
+  encrypted?: boolean; // True if item data is encrypted
 }
 
 export interface SupportList {

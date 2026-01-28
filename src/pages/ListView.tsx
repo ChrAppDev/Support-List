@@ -18,6 +18,8 @@ import {
   parseListContent,
   createListContent,
   generateItemId,
+  encryptItemData,
+  decryptItemData,
 } from '@/lib/supportListUtils';
 import { Shield, Users } from 'lucide-react';
 
@@ -86,7 +88,15 @@ const ListView = () => {
         const parsed = parseListContent(mostRecent.content, mostRecent.pubkey);
         
         if (parsed) {
-          setList(parsed);
+          // Decrypt items if we have the necessary keys
+          if (guestPrivateKey && parsed.ownerPubkey) {
+            const decryptedItems = parsed.items.map(item => 
+              decryptItemData(item, guestPrivateKey, parsed.ownerPubkey)
+            );
+            setList({ ...parsed, items: decryptedItems });
+          } else {
+            setList(parsed);
+          }
         } else {
           setError('Failed to parse list data.');
         }
@@ -121,19 +131,36 @@ const ListView = () => {
 
   const saveList = async (updatedList: SupportList, useGuestKey = false) => {
     const privateKey = useGuestKey ? guestPrivateKey : ownerPrivateKey;
-    if (!privateKey || !guestPubkey) return;
+    if (!privateKey || !guestPubkey || !updatedList.ownerPubkey) return;
 
     try {
+      // Encrypt items before saving
+      // Determine the recipient pubkey (the other party)
+      const senderPubkey = getPublicKey(privateKey);
+      const recipientPubkey = senderPubkey === updatedList.ownerPubkey 
+        ? updatedList.guestPubkey 
+        : updatedList.ownerPubkey;
+      
+      const encryptedItems = updatedList.items.map(item => {
+        // Only encrypt if not already encrypted
+        if (item.encrypted) {
+          return item;
+        }
+        return encryptItemData(item, privateKey, recipientPubkey);
+      });
+
       // Build p tags - include both owner and guest if we know both
       const pTags: string[][] = [['p', guestPubkey]];
       if (updatedList.ownerPubkey && updatedList.ownerPubkey !== guestPubkey) {
         pTags.push(['p', updatedList.ownerPubkey]);
       }
 
+      const listToSave = { ...updatedList, items: encryptedItems };
+
       const event = finalizeEvent(
         {
           kind: LIST_KIND,
-          content: createListContent(updatedList),
+          content: createListContent(listToSave),
           tags: [
             ['d', LIST_D_TAG],
             ...pTags,
@@ -144,7 +171,7 @@ const ListView = () => {
       );
 
       await nostr.event(event);
-      setList(updatedList);
+      setList(updatedList); // Keep decrypted version in state
     } catch (err) {
       console.error('Failed to save list:', err);
       throw new Error('Failed to save list. Please try again.');

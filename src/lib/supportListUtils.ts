@@ -1,8 +1,11 @@
-import { nip19, generateSecretKey, getPublicKey, finalizeEvent, type UnsignedEvent } from 'nostr-tools';
+import { nip19, generateSecretKey, getPublicKey, finalizeEvent, type UnsignedEvent, nip44 } from 'nostr-tools';
 import type { SupportList, TodoItem } from './types';
 
 export const LIST_KIND = 30078; // Application-specific data
 export const LIST_D_TAG = 'support-list';
+
+// Prefix to identify encrypted data
+const ENCRYPTED_PREFIX = 'ENC:';
 
 /**
  * Generate a new keypair for either owner or guest
@@ -81,4 +84,76 @@ export function sortItems(items: TodoItem[]): TodoItem[] {
   const complete = items.filter(i => i.status === 'complete').sort((a, b) => a.order - b.order);
   
   return [...pending, ...claimed, ...complete];
+}
+
+/**
+ * Encrypt item data using NIP-44
+ */
+export function encryptItemData(item: TodoItem, senderPrivKey: Uint8Array, recipientPubkey: string): TodoItem {
+  try {
+    // Create payload with sensitive data
+    const payload = {
+      title: item.title,
+      note: item.note,
+      claimedBy: item.claimedBy,
+    };
+    
+    // Encrypt using NIP-44
+    const conversationKey = nip44.v2.utils.getConversationKey(
+      Buffer.from(senderPrivKey).toString('hex'),
+      recipientPubkey
+    );
+    const encrypted = nip44.v2.encrypt(JSON.stringify(payload), conversationKey);
+    
+    // Return item with encrypted title and encrypted flag
+    return {
+      ...item,
+      title: ENCRYPTED_PREFIX + encrypted,
+      note: undefined,
+      claimedBy: undefined,
+      encrypted: true,
+    };
+  } catch (error) {
+    console.error('Failed to encrypt item:', error);
+    // Return original item if encryption fails
+    return item;
+  }
+}
+
+/**
+ * Decrypt item data using NIP-44
+ */
+export function decryptItemData(item: TodoItem, privateKey: Uint8Array, senderPubkey: string): TodoItem {
+  // If not encrypted, return as-is
+  if (!item.encrypted || !item.title.startsWith(ENCRYPTED_PREFIX)) {
+    return item;
+  }
+  
+  try {
+    // Extract encrypted data
+    const encryptedData = item.title.substring(ENCRYPTED_PREFIX.length);
+    
+    // Decrypt using NIP-44
+    const conversationKey = nip44.v2.utils.getConversationKey(
+      Buffer.from(privateKey).toString('hex'),
+      senderPubkey
+    );
+    const decrypted = nip44.v2.decrypt(encryptedData, conversationKey);
+    const payload = JSON.parse(decrypted);
+    
+    // Return item with decrypted data
+    return {
+      ...item,
+      title: payload.title,
+      note: payload.note,
+      claimedBy: payload.claimedBy,
+    };
+  } catch (error) {
+    console.error('Failed to decrypt item:', error);
+    // Return item with "[Encrypted]" placeholder if decryption fails
+    return {
+      ...item,
+      title: '[Encrypted - Unable to decrypt]',
+    };
+  }
 }
