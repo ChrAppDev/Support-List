@@ -88,11 +88,15 @@ const ListView = () => {
         const parsed = parseListContent(mostRecent.content, mostRecent.pubkey);
         
         if (parsed) {
+          console.log('Raw items from Nostr:', parsed.items);
+          
           // Decrypt items if we have the necessary keys
           if (guestPrivateKey && parsed.ownerPubkey) {
-            const decryptedItems = parsed.items.map(item => 
-              decryptItemData(item, guestPrivateKey, parsed.ownerPubkey)
-            );
+            const decryptedItems = parsed.items.map(item => {
+              console.log('Processing item:', item.id, 'Title starts with ENC:', item.title.startsWith('ENC:'));
+              return decryptItemData(item, guestPrivateKey, parsed.ownerPubkey);
+            });
+            console.log('Decrypted items:', decryptedItems);
             setList({ ...parsed, items: decryptedItems });
           } else {
             setList(parsed);
@@ -141,9 +145,22 @@ const ListView = () => {
         ? updatedList.guestPubkey 
         : updatedList.ownerPubkey;
       
-      const encryptedItems = updatedList.items.map(item => {
-        // Always encrypt items - the function will handle already-encrypted items
-        return encryptItemData(item, privateKey, recipientPubkey);
+      // Track which items get encrypted for state update
+      const encryptedForStorage: TodoItem[] = [];
+      const decryptedForState: TodoItem[] = [];
+      
+      updatedList.items.forEach(item => {
+        console.log('Processing item for save:', item.id, 'Title:', item.title.substring(0, 20), 'Has encrypted flag:', item.encrypted);
+        const encrypted = encryptItemData(item, privateKey, recipientPubkey);
+        console.log('After encryption:', encrypted.id, 'Title starts with ENC:', encrypted.title.startsWith('ENC:'), 'Encrypted flag:', encrypted.encrypted);
+        
+        encryptedForStorage.push(encrypted);
+        
+        // Keep decrypted version with proper encrypted flag for state
+        decryptedForState.push({
+          ...item,
+          encrypted: encrypted.encrypted, // Use the encrypted flag from the encrypted version
+        });
       });
 
       // Build p tags - include both owner and guest if we know both
@@ -152,7 +169,7 @@ const ListView = () => {
         pTags.push(['p', updatedList.ownerPubkey]);
       }
 
-      const listToSave = { ...updatedList, items: encryptedItems };
+      const listToSave = { ...updatedList, items: encryptedForStorage };
 
       const event = finalizeEvent(
         {
@@ -168,7 +185,9 @@ const ListView = () => {
       );
 
       await nostr.event(event);
-      setList(updatedList); // Keep decrypted version in state
+      
+      // Update state with decrypted items but proper encrypted flags
+      setList({ ...updatedList, items: decryptedForState });
     } catch (err) {
       console.error('Failed to save list:', err);
       throw new Error('Failed to save list. Please try again.');

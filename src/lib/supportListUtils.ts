@@ -91,7 +91,7 @@ export function sortItems(items: TodoItem[]): TodoItem[] {
  * This function takes a decrypted item and returns it in encrypted form for storage
  */
 export function encryptItemData(item: TodoItem, senderPrivKey: Uint8Array, recipientPubkey: string): TodoItem {
-  // If title already has ENC: prefix, it's already in encrypted storage form
+  // If title already has ENC: prefix, it's already in encrypted storage form - return as-is
   if (item.title.startsWith(ENCRYPTED_PREFIX)) {
     return item;
   }
