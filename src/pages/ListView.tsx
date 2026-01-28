@@ -115,17 +115,19 @@ const ListView = () => {
         let mergedItems = ownerList.items;
         if (latestGuestEvent) {
           const guestList = parseListContent(latestGuestEvent.content, latestOwnerEvent.pubkey);
+          
           if (guestList) {
-            // Merge: use owner's structure but guest's status/notes/claimedBy if newer
+            // Merge: use owner's structure but ALWAYS apply guest's status/notes/claimedBy
+            // Guest updates should persist even if owner made structural changes later
             mergedItems = ownerList.items.map(ownerItem => {
               const guestItem = guestList.items.find(g => g.id === ownerItem.id);
-              if (guestItem && latestGuestEvent.created_at > latestOwnerEvent.created_at) {
-                // Guest update is newer - use guest's status, notes, and claimedBy
+              if (guestItem) {
+                // Use guest's status, notes, and claimedBy if they exist
                 return {
                   ...ownerItem,
-                  status: guestItem.status,
-                  note: guestItem.note,
-                  claimedBy: guestItem.claimedBy,
+                  status: guestItem.status || ownerItem.status,
+                  note: guestItem.note || ownerItem.note,
+                  claimedBy: guestItem.claimedBy || ownerItem.claimedBy,
                 };
               }
               return ownerItem;
