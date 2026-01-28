@@ -189,8 +189,8 @@ export function GuestView({ list, onUpdateItem }: GuestViewProps) {
       <Alert className="bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
         <Lock className="h-4 w-4 text-green-600 dark:text-green-400" />
         <AlertDescription className="text-sm">
-          <strong>Privacy:</strong> Tasks with a <Lock className="h-3 w-3 inline text-green-600 dark:text-green-400" /> are encrypted. 
-          Only people with the list link can read them. Tasks with <LockOpen className="h-3 w-3 inline text-yellow-600 dark:text-yellow-400" /> were added before encryption was enabled.
+          <strong>Privacy:</strong> New tasks are automatically encrypted with <Lock className="h-3 w-3 inline text-green-600 dark:text-green-400" />. 
+          Only people with the list link can read them.
         </AlertDescription>
       </Alert>
 

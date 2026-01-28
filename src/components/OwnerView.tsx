@@ -291,7 +291,7 @@ export function OwnerView({
         <Lock className="h-4 w-4 text-green-600 dark:text-green-400" />
         <AlertDescription className="text-sm">
           <strong>Privacy:</strong> New tasks are automatically encrypted with <Lock className="h-3 w-3 inline text-green-600 dark:text-green-400" />. 
-          Only people with the list link can read them. Tasks with <LockOpen className="h-3 w-3 inline text-yellow-600 dark:text-yellow-400" /> were added before encryption.
+          Only people with the list link can read them.
         </AlertDescription>
       </Alert>
 
