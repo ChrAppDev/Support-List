@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import type { SupportList, TodoItem } from '@/lib/types';
 import { sortItems } from '@/lib/supportListUtils';
-import { CheckCircle2, Circle, User, MessageSquare, Lock, LockOpen } from 'lucide-react';
+import { CheckCircle2, Circle, User, MessageSquare, Lock } from 'lucide-react';
 
 interface GuestViewProps {
   list: SupportList;
@@ -93,11 +93,6 @@ export function GuestView({ list, onUpdateItem }: GuestViewProps) {
             </div>
 
             <div className="flex items-center gap-2">
-              {item.encrypted ? (
-                <Lock className="h-4 w-4 text-green-600 dark:text-green-400" title="Encrypted" />
-              ) : (
-                <LockOpen className="h-4 w-4 text-yellow-600 dark:text-yellow-400" title="Not Encrypted" />
-              )}
               {item.status === 'pending' && (
                 <Badge variant="secondary">Available</Badge>
               )}
@@ -190,7 +185,7 @@ export function GuestView({ list, onUpdateItem }: GuestViewProps) {
       <Alert className="bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
         <Lock className="h-4 w-4 text-green-600 dark:text-green-400" />
         <AlertDescription className="text-sm">
-          <strong>Privacy:</strong> Tasks and notes are automatically encrypted, indicated with a <Lock className="h-3 w-3 inline text-green-600 dark:text-green-400" />. 
+          <strong>Privacy:</strong> Tasks and notes are automatically encrypted. 
           Only people with the list link can read them.
         </AlertDescription>
       </Alert>
