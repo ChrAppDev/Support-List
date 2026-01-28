@@ -142,10 +142,7 @@ const ListView = () => {
         : updatedList.ownerPubkey;
       
       const encryptedItems = updatedList.items.map(item => {
-        // Only encrypt if not already encrypted
-        if (item.encrypted) {
-          return item;
-        }
+        // Always encrypt items - the function will handle already-encrypted items
         return encryptItemData(item, privateKey, recipientPubkey);
       });
 

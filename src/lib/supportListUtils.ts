@@ -88,8 +88,14 @@ export function sortItems(items: TodoItem[]): TodoItem[] {
 
 /**
  * Encrypt item data using NIP-44
+ * This function takes a decrypted item and returns it in encrypted form for storage
  */
 export function encryptItemData(item: TodoItem, senderPrivKey: Uint8Array, recipientPubkey: string): TodoItem {
+  // If title already has ENC: prefix, it's already in encrypted storage form
+  if (item.title.startsWith(ENCRYPTED_PREFIX)) {
+    return item;
+  }
+
   try {
     // Create payload with sensitive data
     const payload = {
@@ -107,26 +113,34 @@ export function encryptItemData(item: TodoItem, senderPrivKey: Uint8Array, recip
     
     // Return item with encrypted title and encrypted flag
     return {
-      ...item,
+      id: item.id,
       title: ENCRYPTED_PREFIX + encrypted,
-      note: undefined,
-      claimedBy: undefined,
+      status: item.status,
+      order: item.order,
       encrypted: true,
+      // Note: note and claimedBy are encrypted inside the title, so we don't include them here
     };
   } catch (error) {
     console.error('Failed to encrypt item:', error);
-    // Return original item if encryption fails
-    return item;
+    // Return original item without encryption if it fails
+    return {
+      ...item,
+      encrypted: false,
+    };
   }
 }
 
 /**
  * Decrypt item data using NIP-44
+ * This function takes an encrypted item from storage and returns it in decrypted form for display
  */
 export function decryptItemData(item: TodoItem, privateKey: Uint8Array, senderPubkey: string): TodoItem {
-  // If not encrypted, return as-is
-  if (!item.encrypted || !item.title.startsWith(ENCRYPTED_PREFIX)) {
-    return item;
+  // If title doesn't have ENC: prefix, it's an old unencrypted item
+  if (!item.title.startsWith(ENCRYPTED_PREFIX)) {
+    return {
+      ...item,
+      encrypted: false, // Explicitly mark as unencrypted
+    };
   }
   
   try {
