@@ -111,29 +111,46 @@ const ListView = () => {
           return;
         }
 
-        // If there's a guest event, merge guest updates (status, notes, claimedBy)
-        let mergedItems = ownerList.items;
-        if (latestGuestEvent) {
-          const guestList = parseListContent(latestGuestEvent.content, latestOwnerEvent.pubkey);
+        // Merge by looking at all events and taking most recent non-empty values
+        // Start with owner's structure (items and order from latest owner event)
+        let mergedItems = ownerList.items.map(ownerItem => ({ ...ownerItem }));
+        
+        // Decrypt all events' items first
+        const allDecryptedEvents = sortedEvents.map(event => {
+          const eventList = parseListContent(event.content, latestOwnerEvent.pubkey);
+          if (!eventList) return null;
           
-          if (guestList) {
-            // Merge: use owner's structure but ALWAYS apply guest's status/notes/claimedBy
-            // Guest updates should persist even if owner made structural changes later
-            mergedItems = ownerList.items.map(ownerItem => {
-              const guestItem = guestList.items.find(g => g.id === ownerItem.id);
-              if (guestItem) {
-                // Use guest's status, notes, and claimedBy if they exist
-                return {
-                  ...ownerItem,
-                  status: guestItem.status || ownerItem.status,
-                  note: guestItem.note || ownerItem.note,
-                  claimedBy: guestItem.claimedBy || ownerItem.claimedBy,
-                };
-              }
-              return ownerItem;
-            });
+          const decryptedItems = guestPrivateKey && eventList.ownerPubkey
+            ? eventList.items.map(item => decryptItemData(item, guestPrivateKey, eventList.ownerPubkey))
+            : eventList.items;
+          
+          return { timestamp: event.created_at, items: decryptedItems };
+        }).filter(e => e !== null);
+        
+        // For each item, collect the most recent non-empty value for status, note, claimedBy
+        mergedItems = mergedItems.map(ownerItem => {
+          let bestStatus = ownerItem.status;
+          let bestNote = ownerItem.note;
+          let bestClaimedBy = ownerItem.claimedBy;
+          
+          // Look through all events from newest to oldest
+          for (const { items } of allDecryptedEvents) {
+            const eventItem = items.find(ei => ei.id === ownerItem.id);
+            if (eventItem) {
+              // Take first non-empty value found (most recent)
+              if (!bestNote && eventItem.note) bestNote = eventItem.note;
+              if (!bestClaimedBy && eventItem.claimedBy) bestClaimedBy = eventItem.claimedBy;
+              if (eventItem.status && eventItem.status !== 'pending') bestStatus = eventItem.status;
+            }
           }
-        }
+          
+          return {
+            ...ownerItem,
+            status: bestStatus,
+            note: bestNote,
+            claimedBy: bestClaimedBy,
+          };
+        });
 
         // Decrypt items if we have the necessary keys
         if (guestPrivateKey && ownerList.ownerPubkey) {
