@@ -80,25 +80,67 @@ const ListView = () => {
           return;
         }
 
-        // Sort by created_at to get the most recent
+        // Sort events by created_at
         const sortedEvents = events.sort((a, b) => b.created_at - a.created_at);
-        const mostRecent = sortedEvents[0];
-
-        // Parse the content to get the full list data
-        const parsed = parseListContent(mostRecent.content, mostRecent.pubkey);
         
-        if (parsed) {
-          // Decrypt items if we have the necessary keys
-          if (guestPrivateKey && parsed.ownerPubkey) {
-            const decryptedItems = parsed.items.map(item => 
-              decryptItemData(item, guestPrivateKey, parsed.ownerPubkey)
-            );
-            setList({ ...parsed, items: decryptedItems });
-          } else {
-            setList(parsed);
-          }
-        } else {
+        // Separate owner and guest events
+        const ownerEvents = sortedEvents.filter(e => {
+          const parsed = parseListContent(e.content, e.pubkey);
+          return parsed && e.pubkey === parsed.ownerPubkey;
+        });
+        const guestEvents = sortedEvents.filter(e => {
+          const parsed = parseListContent(e.content, e.pubkey);
+          return parsed && e.pubkey !== parsed.ownerPubkey;
+        });
+
+        // Get most recent from each
+        const latestOwnerEvent = ownerEvents[0];
+        const latestGuestEvent = guestEvents[0];
+
+        if (!latestOwnerEvent) {
+          setError('No list found. The owner may not have created the list yet.');
+          setLoading(false);
+          return;
+        }
+
+        // Parse owner's list (source of truth for structure)
+        const ownerList = parseListContent(latestOwnerEvent.content, latestOwnerEvent.pubkey);
+        if (!ownerList) {
           setError('Failed to parse list data.');
+          setLoading(false);
+          return;
+        }
+
+        // If there's a guest event, merge guest updates (status, notes, claimedBy)
+        let mergedItems = ownerList.items;
+        if (latestGuestEvent) {
+          const guestList = parseListContent(latestGuestEvent.content, latestOwnerEvent.pubkey);
+          if (guestList) {
+            // Merge: use owner's structure but guest's status/notes/claimedBy if newer
+            mergedItems = ownerList.items.map(ownerItem => {
+              const guestItem = guestList.items.find(g => g.id === ownerItem.id);
+              if (guestItem && latestGuestEvent.created_at > latestOwnerEvent.created_at) {
+                // Guest update is newer - use guest's status, notes, and claimedBy
+                return {
+                  ...ownerItem,
+                  status: guestItem.status,
+                  note: guestItem.note,
+                  claimedBy: guestItem.claimedBy,
+                };
+              }
+              return ownerItem;
+            });
+          }
+        }
+
+        // Decrypt items if we have the necessary keys
+        if (guestPrivateKey && ownerList.ownerPubkey) {
+          const decryptedItems = mergedItems.map(item => 
+            decryptItemData(item, guestPrivateKey, ownerList.ownerPubkey)
+          );
+          setList({ ...ownerList, items: decryptedItems });
+        } else {
+          setList({ ...ownerList, items: mergedItems });
         }
       } catch (err) {
         console.error('Failed to load list:', err);
