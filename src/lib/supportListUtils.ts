@@ -141,12 +141,13 @@ export function decryptItemData(item: TodoItem, privateKey: Uint8Array, senderPu
     const decrypted = nip44.v2.decrypt(encryptedData, conversationKey);
     const payload = JSON.parse(decrypted);
     
-    // Return item with decrypted data
+    // Return item with decrypted data, preserve encrypted flag
     return {
       ...item,
       title: payload.title,
       note: payload.note,
       claimedBy: payload.claimedBy,
+      encrypted: true, // Keep the encrypted flag
     };
   } catch (error) {
     console.error('Failed to decrypt item:', error);
